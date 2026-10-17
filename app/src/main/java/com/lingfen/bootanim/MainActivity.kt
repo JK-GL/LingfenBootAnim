@@ -118,15 +118,10 @@ class MainActivity : ComponentActivity() {
                 Thread.sleep(180)
                 if (state.cancelled) return@Thread
 
-                // ② 抽取帧：先试压决定质量，避免产出超大包
-                ui { state.stepIndex = 1; state.percent = 5; state.stepDetail = "试压" }
-                val est88 = SizeEstimator.estimate(
-                    this, uri, target, w, h,
-                    state.mainFrames, state.tailFrames, 88
-                )
-                val quality = Quality.pick(est88)
+                // ② 抽取帧：使用用户选定的真实画质（70–100，默认 85）
+                val quality = state.quality
                 state.usedQuality = quality
-                ui { state.estimatedBytes = est88 }
+                ui { state.stepIndex = 1; state.percent = 5; state.stepDetail = "抽帧 (q$quality)" }
 
                 FrameExtractor.extract(this, uri, workDir, w, h, fps, target, quality,
                     object : FrameExtractor.Progress {

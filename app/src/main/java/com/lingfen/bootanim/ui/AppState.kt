@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** 界面全部状态 */
 class AppState {
     // 视频
     var videoUri: Uri? by mutableStateOf(null)
@@ -19,7 +18,7 @@ class AppState {
     // 参数
     var canvasIndex: Int by mutableStateOf(0)          // 0=1080p 1=720p
     var targetSeconds: Double by mutableStateOf(0.0)
-    var baseFps: Int = 25
+    var quality: Int by mutableStateOf(85)             // 70~100 连续画质波轮，默认 85（推荐 85–92）
 
     // 估算
     var estimatedBytes: Long by mutableStateOf(0L)
@@ -37,7 +36,7 @@ class AppState {
     // 生成结果（不自动弹预览，只记录）
     var lastZip: java.io.File? by mutableStateOf(null)
     var lastZipBytes: Long by mutableStateOf(0L)
-    var usedQuality: Int by mutableStateOf(88)
+    var usedQuality: Int by mutableStateOf(85)
 
     // 预览
     var previewZip: java.io.File? by mutableStateOf(null)
@@ -48,27 +47,20 @@ class AppState {
     /** 等效倍速 */
     val speed: Double get() = if (targetSeconds <= 0.0) 1.0 else videoDuration / targetSeconds
 
-    /** 推导帧率（25 × speed，封顶 60） */
-    val outFps: Int get() = max(1, minOf(60, (baseFps * speed).roundToInt()))
+    /** 严格遵循规范：帧率恒定为 25 fps 标准 */
+    val outFps: Int get() = 25
 
-    /** 主体帧数 */
-    val mainFrames: Int get() = (targetSeconds * outFps).roundToInt()
+    /** 主体帧数 = 目标播放时长 × 25 fps（时长缩短，帧数减少，体积真减！） */
+    val mainFrames: Int get() = max(1, (targetSeconds * outFps).roundToInt())
 
-    /** 尾帧数（1 秒定格） */
+    /** 尾帧数（1 秒定格 = 25 帧） */
     val tailFrames: Int get() = outFps
-
-    /** 掉帧比例 */
-    val dropRate: Double
-        get() {
-            if (videoDuration <= 0.0) return 0.0
-            val full = videoDuration * baseFps
-            return max(0.0, (full - mainFrames) / full)
-        }
 
     val hasVideo: Boolean get() = videoUri != null
 
     fun reset() {
         targetSeconds = videoDuration
+        quality = 85
         estimatedBytes = 0L
     }
 }
