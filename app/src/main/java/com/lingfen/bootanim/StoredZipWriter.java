@@ -58,7 +58,7 @@ public class StoredZipWriter implements Closeable {
         writeLE16(h, 0);                        // method = 0 → STORED
         writeLE16(h, 0);                        // mod time
         writeLE16(h, 0x21);                     // mod date = 1980-01-01
-        writeLE32(h, e.crc);
+        writeLE32(h, (int) e.crc);
         writeLE32(h, (int) e.size);             // compressed size == size
         writeLE32(h, (int) e.size);             // uncompressed size
         writeLE16(h, e.nameBytes.length);
@@ -98,7 +98,7 @@ public class StoredZipWriter implements Closeable {
             writeLE16(c, 0);                    // STORED
             writeLE16(c, 0);
             writeLE16(c, 0x21);
-            writeLE32(c, e.crc);
+            writeLE32(c, (int) e.crc);
             writeLE32(c, (int) e.size);
             writeLE32(c, (int) e.size);
             writeLE16(c, e.nameBytes.length);
