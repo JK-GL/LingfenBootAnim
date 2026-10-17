@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import com.lingfen.bootanim.core.SizeEstimator
 import com.lingfen.bootanim.ui.*
 import java.io.File
 
