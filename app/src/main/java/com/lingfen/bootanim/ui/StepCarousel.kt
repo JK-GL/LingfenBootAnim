@@ -23,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -192,8 +190,8 @@ private fun StepRow(text: String?, state: RowState, detail: String = "") {
                 scaleY = scale
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && targetBlur > 0f) {
-                    renderEffect = RenderEffect
-                        .createBlurEffect(targetBlur, targetBlur, Shader.TileMode.CLAMP)
+                    renderEffect = android.graphics.RenderEffect
+                        .createBlurEffect(targetBlur, targetBlur, android.graphics.Shader.TileMode.CLAMP)
                         .asComposeRenderEffect()
                 }
             },

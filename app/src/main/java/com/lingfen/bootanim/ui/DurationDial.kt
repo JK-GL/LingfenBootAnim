@@ -15,8 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -121,8 +119,8 @@ fun DurationDial(
                         .fillMaxHeight()
                         .graphicsLayer {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && blurRadius > 0f) {
-                                renderEffect = RenderEffect
-                                    .createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP)
+                                renderEffect = android.graphics.RenderEffect
+                                    .createBlurEffect(blurRadius, blurRadius, android.graphics.Shader.TileMode.CLAMP)
                                     .asComposeRenderEffect()
                             }
                             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && blurRadius > 0f) {

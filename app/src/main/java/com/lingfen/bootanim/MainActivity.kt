@@ -159,7 +159,7 @@ class MainActivity : ComponentActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     StoragePublisher.publishModern(this, outZip, outZip.name)
                 } else {
-                    StoragePublisher.publishLegacy(this, outZip, outZip.name)
+                    StoragePublisher.publishLegacy(outZip, outZip.name)
                 }
 
                 ui {
