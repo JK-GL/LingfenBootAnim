@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
                     onPickZip = {
                         pickZip.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                     },
+                    onOpenLast = { previewFile = state.lastZip },
                 )
             }
         }
@@ -115,9 +116,21 @@ class MainActivity : ComponentActivity() {
                 Thread.sleep(180)
                 if (state.cancelled) return@Thread
 
-                // ② 抽取帧（FrameExtractor 直接支持 maxSeconds = 目标时长）
-                ui { state.stepIndex = 1; state.percent = 5 }
-                FrameExtractor.extract(this, uri, workDir, w, h, fps, target,
+                // ② 抽取帧：先试压决定质量，避免产出超大包
+                ui { state.stepIndex = 1; state.percent = 5; state.stepDetail = "试压" }
+                val est88 = SizeEstimator.estimate(
+                    this, uri, target, w, h,
+                    state.mainFrames, state.tailFrames, 88
+                )
+                val quality = when {
+                    est88 <= 40L * 1024 * 1024 -> 88
+                    est88 <= 80L * 1024 * 1024 -> 84
+                    else -> 78
+                }
+                state.usedQuality = quality
+                ui { state.estimatedBytes = est88 }
+
+                FrameExtractor.extract(this, uri, workDir, w, h, fps, target, quality,
                     object : FrameExtractor.Progress {
                         override fun onProgress(done: Int, total: Int) {
                             if (state.cancelled) return
@@ -165,7 +178,9 @@ class MainActivity : ComponentActivity() {
                 ui {
                     state.percent = 100
                     state.generating = false
-                    previewFile = outZip      // 自动打开预览
+                    state.lastZip = outZip
+                    state.lastZipBytes = outZip.length()
+                    // 不自动打开预览，由用户在结果卡点击
                 }
 
             } catch (e: Exception) {

@@ -50,6 +50,14 @@ public class FrameExtractor {
     public static Result extract(android.content.Context ctx, Uri srcUri, File workDir,
                                  int targetW, int targetH, int fps,
                                  double maxSeconds, Progress cb) throws Exception {
+        return extract(ctx, srcUri, workDir, targetW, targetH, fps, maxSeconds,
+                JPEG_QUALITY, cb);
+    }
+
+    /** 同上，但可指定 JPEG 质量（85–92 之间符合规范，低于 85 用于压体积） */
+    public static Result extract(android.content.Context ctx, Uri srcUri, File workDir,
+                                 int targetW, int targetH, int fps,
+                                 double maxSeconds, int quality, Progress cb) throws Exception {
 
         File framesDir = new File(workDir, "frames");
         deleteRecursive(framesDir);
@@ -107,7 +115,7 @@ public class FrameExtractor {
 
                 File out = new File(framesDir, String.format("%0" + digits + "d.jpg", i + 1));
                 try (FileOutputStream fos = new FileOutputStream(out)) {
-                    fitted.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, fos);
+                    fitted.compress(Bitmap.CompressFormat.JPEG, quality, fos);
                 }
                 if (!fitted.isRecycled()) fitted.recycle();
 

@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -81,10 +82,17 @@ fun DurationDial(
         }
     }
 
-    // 外部值变化 → 滚动（带守卫，避免与用户滚动打架）
-    LaunchedEffect(value, maxSeconds) {
+    // 首次进入 / 换视频：直接定位到目标值（不做动画，避免与布局竞争）
+    var initialized by remember(maxSeconds) { mutableStateOf(false) }
+    LaunchedEffect(value, maxSeconds, count) {
         val target = (value / STEP).roundToInt().coerceIn(0, count - 1)
-        if (target != centerIndex) {
+        if (!initialized) {
+            // 等一帧让 LazyRow 完成测量，否则 scrollToItem 可能无效
+            withFrameNanos { }
+            listState.scrollToItem(target)
+            lastHaptic = target
+            initialized = true
+        } else if (target != centerIndex) {
             listState.animateScrollToItem(target)
         }
     }

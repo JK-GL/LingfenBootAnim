@@ -32,6 +32,7 @@ fun MainScreen(
     onGenerate: () -> Unit,
     onCancel: () -> Unit,
     onPickZip: () -> Unit,
+    onOpenLast: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val scroll = rememberScrollState()
@@ -142,6 +143,31 @@ fun MainScreen(
                     bold = true,
                 )
                 InfoRow("输出", "下载/LingfenBoot/${outName(st)}", C.t2, 12, showDivider = false)
+
+                if (st.lastZip != null) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(C.ok.copy(alpha = 0.12f))
+                            .clickable { onOpenLast() }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("✓", color = C.ok, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "已生成 %.1f MB · %d 帧 · %.0f KB/帧 · 点击预览".format(
+                                st.lastZipBytes / 1048576.0,
+                                st.mainFrames + 1 + st.tailFrames,
+                                st.lastZipBytes / 1024.0 / (st.mainFrames + 1 + st.tailFrames)
+                            ),
+                            color = C.ok,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(14.dp))
 

@@ -23,7 +23,7 @@ android {
             signingConfig signingConfigs.debug   // 用 debug 签名，方便直接安装
         }
         debug {
-            applicationIdSuffix ".debug"
+            // 不加 .debug 后缀：保证覆盖安装同一个应用，避免出现两个图标
         }
     }
 

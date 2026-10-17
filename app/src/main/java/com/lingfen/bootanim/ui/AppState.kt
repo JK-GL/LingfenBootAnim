@@ -34,6 +34,11 @@ class AppState {
     var cancelled: Boolean = false
     var error: String? by mutableStateOf(null)
 
+    // 生成结果（不自动弹预览，只记录）
+    var lastZip: java.io.File? by mutableStateOf(null)
+    var lastZipBytes: Long by mutableStateOf(0L)
+    var usedQuality: Int by mutableStateOf(88)
+
     // 预览
     var previewZip: java.io.File? by mutableStateOf(null)
 
