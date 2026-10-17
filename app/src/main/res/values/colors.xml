@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#0B0E14</color>
-    <color name="card">#161A23</color>
-    <color name="stroke">#2A3140</color>
+    <color name="bg">#080A0F</color>
+    <color name="card">#141821</color>
+    <color name="card2">#1B202B</color>
+    <color name="stroke">#232A38</color>
+    <color name="stroke2">#2C3446</color>
     <color name="accent">#4D8DFF</color>
-    <color name="t1">#F2F5FA</color>
-    <color name="t2">#B8C1D1</color>
-    <color name="t3">#7A8598</color>
+    <color name="t1">#F1F5FC</color>
+    <color name="t2">#A4AEC0</color>
+    <color name="t3">#687384</color>
+    <color name="ok">#33D69F</color>
+    <color name="warn">#FFB020</color>
+    <color name="bad">#FF5A5F</color>
 </resources>
