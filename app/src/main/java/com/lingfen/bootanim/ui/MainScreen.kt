@@ -47,10 +47,12 @@ fun MainScreen(
         val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             SizeEstimator.estimate(
                 ctx, uri, st.videoDuration,
-                st.outW, st.outH, frames, st.tailFrames
+                st.outW, st.outH, frames, st.tailFrames, 88
             )
         }
-        st.estimatedBytes = bytes
+        val q = com.lingfen.bootanim.core.Quality.pick(bytes)
+        st.usedQuality = q
+        st.estimatedBytes = com.lingfen.bootanim.core.Quality.adjust(bytes, q)
         st.estimating = false
     }
 

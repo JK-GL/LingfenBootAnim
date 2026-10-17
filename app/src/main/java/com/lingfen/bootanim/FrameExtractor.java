@@ -76,12 +76,14 @@ public class FrameExtractor {
             int rotation = (int) parseLong(mmr.extractMetadata(
                     MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION), 0);
 
-            double useMs = durationMs;
-            if (maxSeconds > 0 && durationMs > maxSeconds * 1000.0) {
-                useMs = maxSeconds * 1000.0;
-            }
+            // 关键：目标时长决定「播放时长」，不是「截取范围」。
+            // 帧数 = 播放时长 × 帧率；抽帧覆盖【全片】，播放时才体现为加速。
+            // 旧实现把采样范围截断到前 N 秒，效果是裁掉结尾、速度不变（bug）。
+            double fullSec = durationMs / 1000.0;
+            double playSec = (maxSeconds > 0 && maxSeconds < fullSec) ? maxSeconds : fullSec;
+            if (playSec <= 0) playSec = fullSec;
 
-            int total = (int) Math.round(useMs / 1000.0 * fps);
+            int total = (int) Math.round(playSec * fps);
             if (total < 1) total = 1;
             // 与 BootPackager 完全一致的帧号宽度：保证按文件名排序 == 按时间排序
             int digits = String.valueOf(total + Math.max(1, fps)).length();
@@ -92,7 +94,9 @@ public class FrameExtractor {
 
             if (cb != null) cb.onStatus("共 " + total + " 帧，开始抽帧…");
 
-            long stepUs = (long) (1_000_000.0 / fps);
+            // 全片均分：total 帧覆盖 durationMs 全程
+            long stepUs = (long) (durationMs * 1000.0 / total);
+            if (stepUs < 1) stepUs = 1;
             long emitted = 0;
 
             for (int i = 0; i < total; i++) {

@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import com.lingfen.bootanim.core.Quality
 import com.lingfen.bootanim.core.SizeEstimator
 import com.lingfen.bootanim.ui.*
 import java.io.File
@@ -123,11 +124,7 @@ class MainActivity : ComponentActivity() {
                     this, uri, target, w, h,
                     state.mainFrames, state.tailFrames, 88
                 )
-                val quality = when {
-                    est88 <= 40L * 1024 * 1024 -> 88
-                    est88 <= 80L * 1024 * 1024 -> 84
-                    else -> 78
-                }
+                val quality = Quality.pick(est88)
                 state.usedQuality = quality
                 ui { state.estimatedBytes = est88 }
 

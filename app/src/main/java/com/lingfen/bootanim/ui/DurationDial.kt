@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -32,11 +31,11 @@ private val ITEM_W = 50.dp
 /**
  * 横向刻度带（时长选择）
  *
- * 关键实现细节：
- * 1) 用 contentPadding = (视口宽 - 单格宽)/2，让首尾项也能滚到正中
- * 2) 中心项判定基于视口中心，与 scroll 对齐方式一致
- * 3) 跨格触发触觉反馈
- * 4) 两侧模糊：API31+ RenderEffect，低版本降级 alpha
+ * 初始定位靠 rememberLazyListState(initialFirstVisibleItemIndex) 直接落位，
+ * 不依赖事后 scrollToItem —— 后者在首帧布局未完成时会静默失败，表现为停在 0。
+ *
+ * 用户滚动 → onChange 回传；外部值变化 → 主动滚动。
+ * 用 lastApplied 区分两者，避免滚动回弹打架。
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -54,46 +53,44 @@ fun DurationDial(
         return
     }
 
-    val listState = rememberLazyListState()
+    // 目标值兜底：有视频但值为 0 时，默认落在源时长
+    val effValue = if (value <= 0.0) maxSeconds else value.coerceIn(0.0, maxSeconds)
+    val targetIndex = (effValue / STEP).roundToInt().coerceIn(0, count - 1)
+
+    // 首次组合直接定位到目标项（最可靠）
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = targetIndex)
     val haptic = LocalHapticFeedback.current
     val fling = rememberSnapFlingBehavior(lazyListState = listState)
 
-    // 中心项索引
+    // 中心项
     val centerIndex by remember(listState) {
         derivedStateOf {
             val info = listState.layoutInfo
-            if (info.visibleItemsInfo.isEmpty()) return@derivedStateOf 0
+            if (info.visibleItemsInfo.isEmpty()) return@derivedStateOf targetIndex
             val vpCenter = (info.viewportStartOffset + info.viewportEndOffset) / 2
             info.visibleItemsInfo.minByOrNull {
                 abs((it.offset + it.size / 2) - vpCenter)
-            }?.index ?: 0
+            }?.index ?: targetIndex
         }
     }
 
-    // 跨格震动 + 回传
-    var lastHaptic by remember { mutableIntStateOf(-1) }
+    // 记录「已经对齐到哪个索引」，用于区分用户滚动与外部变更
+    var lastApplied by remember { mutableIntStateOf(targetIndex) }
+
+    // 用户滚动 → 震动 + 回传
     LaunchedEffect(centerIndex) {
-        if (centerIndex != lastHaptic) {
-            if (lastHaptic >= 0) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            }
-            lastHaptic = centerIndex
+        if (centerIndex != lastApplied) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            lastApplied = centerIndex          // 这是用户滚出来的，不要再滚回去
             onChange(centerIndex * STEP)
         }
     }
 
-    // 首次进入 / 换视频：直接定位到目标值（不做动画，避免与布局竞争）
-    var initialized by remember(maxSeconds) { mutableStateOf(false) }
-    LaunchedEffect(value, maxSeconds, count) {
-        val target = (value / STEP).roundToInt().coerceIn(0, count - 1)
-        if (!initialized) {
-            // 等一帧让 LazyRow 完成测量，否则 scrollToItem 可能无效
-            withFrameNanos { }
-            listState.scrollToItem(target)
-            lastHaptic = target
-            initialized = true
-        } else if (target != centerIndex) {
-            listState.animateScrollToItem(target)
+    // 外部值变化（换视频 / 代码设定）→ 主动滚动
+    LaunchedEffect(targetIndex, count) {
+        if (targetIndex != lastApplied) {
+            listState.scrollToItem(targetIndex)
+            lastApplied = targetIndex
         }
     }
 
@@ -167,7 +164,7 @@ fun DurationDial(
                 }
             }
 
-            // 中心指针线
+            // 中心指针
             Box(
                 Modifier
                     .align(Alignment.Center)
@@ -180,7 +177,7 @@ fun DurationDial(
                     )
             )
 
-            // 左右渐隐（遮罩效果）
+            // 两侧渐隐
             Row(Modifier.fillMaxSize()) {
                 Box(
                     Modifier.weight(1f).fillMaxHeight().background(
