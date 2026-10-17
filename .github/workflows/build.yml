@@ -17,29 +17,37 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Build debug APK
+      # ubuntu-latest runner 自带 Android SDK（$ANDROID_SDK_ROOT），
+      # 不用 android-actions/setup-android —— 它在非交互环境会卡在许可证提示。
+      - name: Configure Android SDK
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          echo "SDK: $ANDROID_SDK_ROOT"
+          SDKMAN="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          ls -la "$SDKMAN" || echo "sdkmanager 不在预期路径"
+          yes | "$SDKMAN" --licenses > /dev/null 2>&1 || true
+          yes | "$SDKMAN" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+          echo "--- platforms ---"
+          ls "$ANDROID_SDK_ROOT/platforms" || true
 
-      - name: Build release APK (unsigned)
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+      # 工程里没有二进制 gradle-wrapper.jar（我手写的 gradlew 只是引导壳），
+      # 所以这里显式安装 Gradle 8.7，与 gradle-wrapper.properties 声明的版本一致。
+      - name: Install Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build APK
+        run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Show outputs
+        if: always()
         run: |
-          find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
+          find app/build/outputs -name "*.apk" -exec ls -lh {} \; 2>/dev/null || echo "没有 APK 产物"
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: lingfen-bootanim-apk
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
