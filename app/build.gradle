@@ -1,0 +1,53 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.lingfen.bootanim'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.lingfen.bootanim"
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false          // 纯 Java 体积已很小，不混淆以便排查
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            applicationIdSuffix ".debug"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 不生成 BuildConfig，进一步减小体积
+    buildFeatures {
+        buildConfig false
+    }
+
+    packaging {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}', '/META-INF/DEPENDENCIES']
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.activity:activity:1.8.2'
+}
