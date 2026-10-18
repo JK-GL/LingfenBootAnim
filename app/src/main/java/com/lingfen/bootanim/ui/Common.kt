@@ -1,5 +1,7 @@
 package com.lingfen.bootanim.ui
 
+import androidx.compose.runtime.*
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
