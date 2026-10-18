@@ -49,7 +49,7 @@ fun PreviewScreen(
                 append("总计 %.2fs".format(p.totalSeconds))
                 append(" · ${p.width}×${p.height}")
                 append(" · ${p.fps}fps")
-                append(" · %.2f MB".format(zipFile.length() / 1048576.0))
+                append(" · %.2f Mb".format(zipFile.length() / 1048576.0))
             }
             p.onFrame = { frame = it }
             p.onProgress = { e, t -> elapsed = e; total = t }

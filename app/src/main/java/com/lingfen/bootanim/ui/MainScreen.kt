@@ -45,7 +45,8 @@ fun MainScreen(
         val baseKb = if (st.outW == 1920) 165.0 else 75.0
         val qFactor = 1.0 + (st.quality - 85) * 0.035
         val fastTotal = ((frames + 1) * baseKb * qFactor * 1024).toLong()
-        if (st.estimatedBytes <= 0) st.estimatedBytes = fastTotal
+        st.estimatedBytes = fastTotal
+        st.estimating = true
 
         // 后台异步精准修正
         val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -57,6 +58,7 @@ fun MainScreen(
             } catch (_: Exception) { fastTotal }
         }
         st.estimatedBytes = bytes
+        st.estimating = false
     }
 
     Box(Modifier.fillMaxSize().background(C.bg)) {
@@ -174,14 +176,15 @@ fun MainScreen(
                 InfoRow("画布", "${st.outW} × ${st.outH}")
                 InfoRow("帧率", if (st.hasVideo) "${st.outFps} fps (标准)" else "—")
                 InfoRow("主体帧数", if (st.hasVideo) "${st.mainFrames} 帧" else "—")
+                val sizeText = when {
+                    !st.hasVideo -> "—"
+                    st.estimating -> "重新计算中… 约 %.1f Mb".format(st.estimatedBytes / 1048576.0)
+                    else -> "约 %.1f Mb".format(st.estimatedBytes / 1048576.0)
+                }
                 InfoRow(
                     "预计体积",
-                    when {
-                        !st.hasVideo -> "—"
-                        st.estimating -> "测量中…"
-                        else -> "约 %.1f MB".format(st.estimatedBytes / 1048576.0)
-                    },
-                    valueColor = if (st.estimatedBytes > 128L * 1024 * 1024) C.warn else C.t1,
+                    sizeText,
+                    valueColor = if (st.estimatedBytes > 128L * 1024 * 1024) C.warn else (if (st.estimating) C.accent else C.t1),
                     bold = true,
                 )
                 val pathText = if (st.hasVideo) {
@@ -190,7 +193,7 @@ fun MainScreen(
                 } else {
                     "下载/LingfenBoot/"
                 }
-                InfoRow("输出", pathText, C.t2, 13, showDivider = false)
+                InfoRow("保存位置", pathText, C.t2, 13, showDivider = false)
 
                 if (st.lastZip != null) {
                     Spacer(Modifier.height(10.dp))
@@ -199,20 +202,34 @@ fun MainScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(C.ok.copy(alpha = 0.12f))
-                            .clickable { onOpenLast() }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("✓", color = C.ok, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "已生成 %.1f MB · %d 帧 · 点击预览".format(
-                                st.lastZipBytes / 1048576.0,
-                                st.mainFrames + 1 + st.tailFrames,
-                            ),
-                            color = C.ok,
-                            fontSize = 12.sp,
-                        )
+                        Row(
+                            Modifier.weight(1f).clickable { onOpenLast() },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("✓", color = C.ok, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "已生成 %.1f Mb · %d 帧 · 点击预览".format(
+                                    st.lastZipBytes / 1048576.0,
+                                    st.mainFrames + 1,
+                                ),
+                                color = C.ok,
+                                fontSize = 12.sp,
+                            )
+                        }
+                        // 右侧靠边关闭按钮
+                        Box(
+                            Modifier
+                                .size(28.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .clickable { st.lastZip = null },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("✕", color = C.ok.copy(alpha = 0.7f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 

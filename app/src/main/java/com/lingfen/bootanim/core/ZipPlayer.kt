@@ -35,7 +35,7 @@ class ZipPlayer(private val zipFile: File) {
     var fps = 25; private set
     var totalSeconds = 0.0; private set
 
-    private val zip = ZipFile(zipFile)
+    private var zip: ZipFile? = null
     private val timeline = ArrayList<Frame>()
     private val cache = LinkedHashMap<String, Bitmap>(8, 0.75f, true)
     private val handler = Handler(Looper.getMainLooper())
@@ -51,8 +51,10 @@ class ZipPlayer(private val zipFile: File) {
 
     /** 解析 desc.txt 并构建时间轴 */
     fun load(): Boolean {
-        val descEntry = zip.getEntry("desc.txt") ?: return false
-        val desc = zip.getInputStream(descEntry).bufferedReader().use { it.readText() }
+        val z = try { ZipFile(zipFile) } catch (_: Exception) { return false }
+        zip = z
+        val descEntry = z.getEntry("desc.txt") ?: return false
+        val desc = z.getInputStream(descEntry).bufferedReader().use { it.readText() }
             .removePrefix("\uFEFF")
 
         val lines = desc.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
@@ -72,7 +74,7 @@ class ZipPlayer(private val zipFile: File) {
             val count = sp[1].toIntOrNull() ?: 0
             val pause = sp[2].toIntOrNull() ?: 0
             val folder = sp[3]
-            val frames = zip.entries().toList()
+            val frames = z.entries().toList()
                 .map { it.name }
                 .filter { it.startsWith("$folder/") && !it.endsWith("/") }
                 .sorted()
@@ -132,7 +134,7 @@ class ZipPlayer(private val zipFile: File) {
         pause()
         cache.values.forEach { it.recycle() }
         cache.clear()
-        try { zip.close() } catch (_: Exception) {}
+        try { zip?.close() } catch (_: Exception) {}
     }
 
     private val tick = object : Runnable {
@@ -173,8 +175,8 @@ class ZipPlayer(private val zipFile: File) {
 
         Thread {
             val bmp = try {
-                val entry = zip.getEntry(f.path) ?: return@Thread cb(null)
-                zip.getInputStream(entry).use { BitmapFactory.decodeStream(it) }
+                val entry = zip?.getEntry(f.path) ?: return@Thread cb(null)
+                zip?.getInputStream(entry).use { BitmapFactory.decodeStream(it) }
             } catch (e: Exception) { null }
 
             if (bmp != null) {

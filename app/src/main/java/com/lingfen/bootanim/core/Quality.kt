@@ -7,13 +7,13 @@ package com.lingfen.bootanim.core
  */
 object Quality {
 
-    private const val MB = 1024L * 1024L
+    private const val Mb = 1024L * 1024L
 
     /** 根据 q88 预估体积选择质量 */
     fun pick(est88: Long): Int = when {
-        est88 <= 30 * MB -> 88
-        est88 <= 60 * MB -> 84
-        est88 <= 100 * MB -> 78
+        est88 <= 30 * Mb -> 88
+        est88 <= 60 * Mb -> 84
+        est88 <= 100 * Mb -> 78
         else -> 72
     }
 

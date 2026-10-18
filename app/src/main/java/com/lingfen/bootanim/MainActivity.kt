@@ -26,7 +26,17 @@ class MainActivity : ComponentActivity() {
 
     private val pickZip = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? -> if (uri != null) copyToCache(uri)?.let { previewFile = it } }
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val file = copyToCache(uri)
+            if (file != null && isValidZip(file)) {
+                previewFile = file
+            } else {
+                file?.delete()
+                showZipErrorDialog()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +104,22 @@ class MainActivity : ComponentActivity() {
         }
         f
     } catch (_: Exception) { null }
+
+    /** 预检选择的文件是否为合规的开机动画 zip 文件 */
+    private fun isValidZip(file: File): Boolean = try {
+        java.util.zip.ZipFile(file).use { zf ->
+            zf.getEntry("desc.txt") != null
+        }
+    } catch (_: Exception) { false }
+
+    /** 弹窗提示用户选择合规的 zip 文件 */
+    private fun showZipErrorDialog() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("提示")
+            .setMessage("请选择正确的 zip 文件")
+            .setPositiveButton("确定", null)
+            .show()
+    }
 
     // ── 生成流程 ──────────────────────────────
     private fun startGenerate() {
