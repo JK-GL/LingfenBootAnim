@@ -32,6 +32,8 @@ fun MainScreen(
 ) {
     val scroll = rememberScrollState()
     val ctx = LocalContext.current
+    var helpDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val showHelp = { title: String, content: String -> helpDialog = title to content }
 
     // 当视频/尺寸/时长/画质改变时，异步试压测体积
     // 快速体积响应：选了波轮 0 毫秒秒变，绝不卡死等待
@@ -90,7 +92,7 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SectionTitle("画布", "必须等于车机屏幕分辨率，填错会被车机拒绝") {}
+                    SectionTitle("画布", "必须等于车机屏幕分辨率，填错会被车机拒绝") { showHelp("画布说明", "画布分辨率必须严格与车机屏幕物理分辨率对齐。\n\n• 填错分辨率车机将无法正常渲染甚至黑屏拒绝；\n• 现已提供宝骏/五菱主流 1920×1080 与 1024×600 等规格，按实际车型选择即可。") }
                 }
                 Spacer(Modifier.height(8.dp))
                 SegmentedControl(
@@ -109,7 +111,7 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SectionTitle("画质", "JPEG 压缩质量（70–100）。推荐 85–92，默认 85；调低可显著缩小体积，调高画面更细腻。") {}
+                    SectionTitle("画质", "JPEG 压缩质量（50–100）。推荐 85–92，默认 85；调低可显著缩小体积，调高画面更细腻。") { showHelp("画质说明", "JPEG 压缩质量（50–100）。\n\n• 推荐范围：85–92\n• 默认基准：85\n• 作用：调低可大幅缩小 ZIP 体积，调高画面更细腻。车机对体积敏感时建议设为 75~85。") }
                     Text(
                         "JPEG 质量 ${st.quality} · 推荐 85–92",
                         color = C.t2,
@@ -120,7 +122,7 @@ fun MainScreen(
                 Spacer(Modifier.height(4.dp))
                 WheelPicker(
                     value = st.quality.toDouble(),
-                    min = 70.0,
+                    min = 50.0,
                     max = 100.0,
                     step = 1.0,
                     onChange = { st.quality = it.roundToInt() },
@@ -137,7 +139,7 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SectionTitle("时长", "播放时长。固定 25fps 标准；全片均匀重采样加速，不剪断视频，缩短时长可大幅降低文件体积。") {}
+                    SectionTitle("时长", "播放时长。固定 25fps 标准；全片均匀重采样加速，不剪断视频，缩短时长可大幅降低文件体积。") { showHelp("时长说明", "播放动画时长设置（固定 25fps 车机标准）。\n\n• 默认停留在原视频时长；\n• 向左滑动可加快播放速度并大幅压减体积；\n• 车机开机窗口约为 6.5 秒，最低下限保护为 6.0 秒，避免开机过早放完定格。") }
                     Text(
                         if (st.hasVideo)
                             "%.1f 秒 · 原 %.1f 秒".format(st.targetSeconds, st.videoDuration)
@@ -280,6 +282,26 @@ fun MainScreen(
                     enabled = st.hasVideo,
                 ) { onGenerate() }
             }
+        }
+
+        // 统一说明弹窗
+        helpDialog?.let { (title, content) ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { helpDialog = null },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { helpDialog = null }) {
+                        androidx.compose.material3.Text("我知道了", color = C.accent, fontWeight = FontWeight.Bold)
+                    }
+                },
+                title = {
+                    androidx.compose.material3.Text(title, color = C.t1, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    androidx.compose.material3.Text(content, color = C.t2, fontSize = 14.sp, lineHeight = 21.sp)
+                },
+                containerColor = C.card,
+                shape = RoundedCornerShape(18.dp)
+            )
         }
     }
 }

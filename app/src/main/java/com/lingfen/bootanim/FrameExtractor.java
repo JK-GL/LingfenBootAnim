@@ -55,9 +55,20 @@ public class FrameExtractor {
     }
 
     /** 同上，但可指定 JPEG 质量（85–92 之间符合规范，低于 85 用于压体积） */
+    public interface CancelChecker {
+        boolean isCancelled();
+    }
+
     public static Result extract(android.content.Context ctx, Uri srcUri, File workDir,
                                  int targetW, int targetH, int fps,
                                  double maxSeconds, int quality, Progress cb) throws Exception {
+        return extract(ctx, srcUri, workDir, targetW, targetH, fps, maxSeconds, quality, cb, null);
+    }
+
+    public static Result extract(android.content.Context ctx, Uri srcUri, File workDir,
+                                 int targetW, int targetH, int fps,
+                                 double maxSeconds, int quality, Progress cb,
+                                 CancelChecker cancelChecker) throws Exception {
 
         File framesDir = new File(workDir, "frames");
         deleteRecursive(framesDir);
@@ -100,7 +111,7 @@ public class FrameExtractor {
             long emitted = 0;
 
             for (int i = 0; i < total; i++) {
-                if (Thread.currentThread().isInterrupted()) {
+                if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
                     throw new InterruptedException("用户已取消抽帧");
                 }
                 long tUs = i * stepUs;
@@ -127,6 +138,9 @@ public class FrameExtractor {
                 if (!fitted.isRecycled()) fitted.recycle();
 
                 emitted++;
+                if (Thread.currentThread().isInterrupted() || (cancelChecker != null && cancelChecker.isCancelled())) {
+                    throw new InterruptedException("用户已取消抽帧");
+                }
                 if (cb != null && (i % 5 == 0 || i == total - 1)) {
                     cb.onProgress(i + 1, total);
                 }

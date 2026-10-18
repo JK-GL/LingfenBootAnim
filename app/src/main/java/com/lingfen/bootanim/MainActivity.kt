@@ -132,8 +132,11 @@ class MainActivity : ComponentActivity() {
         state.percent = 0
         state.stepDetail = ""
         state.stepIndex = 0
-        generateThread?.interrupt()
+        try {
+            generateThread?.interrupt()
+        } catch (_: Exception) {}
         generateThread = null
+        android.widget.Toast.makeText(this, "已取消生成", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     private fun startGenerate() {
@@ -163,19 +166,27 @@ class MainActivity : ComponentActivity() {
                 state.usedQuality = quality
                 ui { state.stepIndex = 1; state.percent = 5; state.stepDetail = "抽帧 (q$quality)" }
 
+                var lastProgressTime = 0L
                 FrameExtractor.extract(this, uri, workDir, w, h, fps, target, quality,
                     object : FrameExtractor.Progress {
                         override fun onProgress(done: Int, total: Int) {
                             if (state.cancelled || Thread.currentThread().isInterrupted) return
-                            ui {
-                                if (!state.cancelled && state.generating) {
-                                    state.percent = 5 + (done.toFloat() / total * 75).toInt()
-                                    state.stepDetail = "$done/$total"
+                            val now = System.currentTimeMillis()
+                            // 100ms 节流门控：防止过度轰炸主线程导致触摸事件被丢弃
+                            if (now - lastProgressTime >= 100 || done == total) {
+                                lastProgressTime = now
+                                ui {
+                                    if (!state.cancelled && state.generating) {
+                                        state.percent = 5 + (done.toFloat() / total * 75).toInt()
+                                        state.stepDetail = "$done/$total"
+                                    }
                                 }
                             }
                         }
                         override fun onStatus(msg: String?) {}
-                    })
+                    },
+                    { state.cancelled || Thread.currentThread().isInterrupted }
+                )
                 if (state.cancelled || Thread.currentThread().isInterrupted) return@Thread
 
                 // ③ 起始定格
@@ -234,7 +245,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             } finally {
-                FrameExtractor.deleteRecursive(workDir)
+                // 异步清理临时目录，彻底解除对任何主线程与当前流程的阻塞
+                Thread {
+                    try { FrameExtractor.deleteRecursive(workDir) } catch (_: Exception) {}
+                }.start()
                 if (state.cancelled) {
                     ui {
                         state.generating = false

@@ -18,7 +18,7 @@ class AppState {
     // 参数
     var canvasIndex: Int by mutableStateOf(0)          // 0=1080p 1=720p
     var targetSeconds: Double by mutableStateOf(0.0)
-    var quality: Int by mutableStateOf(85)             // 70~100 连续画质波轮，默认 85（推荐 85–92）
+    var quality: Int by mutableStateOf(85)             // 50~100 连续画质波轮，默认 85（推荐 85–92）
 
     // 估算
     var estimatedBytes: Long by mutableStateOf(0L)

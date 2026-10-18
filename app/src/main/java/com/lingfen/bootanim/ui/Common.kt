@@ -44,16 +44,26 @@ fun SectionTitle(text: String, hint: String? = null, onHint: () -> Unit = {}) {
             letterSpacing = 1.4.sp,
         )
         if (hint != null) {
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(4.dp))
             Box(
                 Modifier
-                    .size(15.dp)
-                    .clip(RoundedCornerShape(50))
-                    .border(1.dp, C.stroke2, RoundedCornerShape(50))
-                    .clickable { onHint() },
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { onHint() }
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("?", color = C.t3, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Box(
+                    Modifier
+                        .size(17.dp)
+                        .clip(RoundedCornerShape(50))
+                        .border(1.dp, C.stroke2, RoundedCornerShape(50))
+                        .background(C.card2),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("?", color = C.t2, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
