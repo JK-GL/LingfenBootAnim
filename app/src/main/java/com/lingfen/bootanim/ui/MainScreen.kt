@@ -34,20 +34,29 @@ fun MainScreen(
     val ctx = LocalContext.current
 
     // 当视频/尺寸/时长/画质改变时，异步试压测体积
+    // 快速体积响应：选了波轮 0 毫秒秒变，绝不卡死等待
     LaunchedEffect(st.videoUri, st.canvasIndex, st.targetSeconds, st.quality) {
         val uri = st.videoUri ?: return@LaunchedEffect
         if (st.videoDuration <= 0) return@LaunchedEffect
-        st.estimating = true
         val frames = st.mainFrames
-        if (frames <= 0) { st.estimating = false; return@LaunchedEffect }
+        if (frames <= 0) return@LaunchedEffect
+
+        // 先给实时公式估算值（立刻响应）
+        val baseKb = if (st.outW == 1920) 165.0 else 75.0
+        val qFactor = 1.0 + (st.quality - 85) * 0.035
+        val fastTotal = ((frames + 1) * baseKb * qFactor * 1024).toLong()
+        if (st.estimatedBytes <= 0) st.estimatedBytes = fastTotal
+
+        // 后台异步精准修正
         val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            SizeEstimator.estimate(
-                ctx, uri, st.videoDuration,
-                st.outW, st.outH, frames, st.tailFrames, st.quality
-            )
+            try {
+                SizeEstimator.estimate(
+                    ctx, uri, st.videoDuration,
+                    st.outW, st.outH, frames, 1, st.quality
+                )
+            } catch (_: Exception) { fastTotal }
         }
         st.estimatedBytes = bytes
-        st.estimating = false
     }
 
     Box(Modifier.fillMaxSize().background(C.bg)) {
@@ -175,7 +184,13 @@ fun MainScreen(
                     valueColor = if (st.estimatedBytes > 128L * 1024 * 1024) C.warn else C.t1,
                     bold = true,
                 )
-                InfoRow("保存路径", "下载/LingfenBoot/${outName(st)}", C.t2, 12, showDivider = false)
+                val pathText = if (st.hasVideo) {
+                    val base = st.videoName.substringBeforeLast('.').ifEmpty { "bootanimation" }
+                    "下载/LingfenBoot/$base.zip"
+                } else {
+                    "下载/LingfenBoot/"
+                }
+                InfoRow("输出", pathText, C.t2, 13, showDivider = false)
 
                 if (st.lastZip != null) {
                     Spacer(Modifier.height(10.dp))
@@ -243,7 +258,7 @@ fun MainScreen(
             } else {
                 PrimaryButton(
                     "生成 bootanimation.zip",
-                    enabled = st.hasVideo && !st.estimating,
+                    enabled = st.hasVideo,
                 ) { onGenerate() }
             }
         }
@@ -288,9 +303,4 @@ fun SpeedBar(st: AppState) {
     }
 }
 
-private fun outName(st: AppState): String {
-    val base = st.videoName.substringBeforeLast('.')
-    val sec = if (st.targetSeconds <= 0.0) "6.0" else "%.1f".format(st.targetSeconds)
-    val res = if (st.canvasIndex == 0) "1080p" else "720p"
-    return "${base}_${res}_${sec}s_bootanimation.zip"
-}
+

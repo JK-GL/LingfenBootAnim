@@ -97,8 +97,11 @@ class ZipPlayer(private val zipFile: File) {
                     if (pt.pause > 0) push(pt.frames.last(), pt.pause.toDouble() / fps)
                 }
             } else {
-                pt.frames.forEach { push(it, 1.0 / fps) }
-                push(pt.frames.last(), 2.0)   // p 类型：保持 2 秒
+                // 车机保活定格段（p 类型）：如果前面已有主体动画（c 类型），预览不重复播放末帧定格
+                // 确保用户选 5.0 秒，时间轴就精确为 5.0 秒，放完立即利落结束！
+                if (parts.none { it.type == 'c' }) {
+                    pt.frames.forEach { push(it, 1.0 / fps) }
+                }
             }
         }
         totalSeconds = t
