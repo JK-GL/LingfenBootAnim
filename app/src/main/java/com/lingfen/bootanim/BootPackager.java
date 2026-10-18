@@ -33,11 +33,6 @@ public class BootPackager {
         void onStatus(String msg);
     }
 
-    /** part2 定格帧数：按 1 秒折算，至少 1 帧。 */
-    private static int tailFrames(int fps) {
-        return Math.max(1, fps);
-    }
-
     public static Result packageFrames(File workDir, File outZip,
                                        int w, int h, int fps,
                                        Progress cb) throws Exception {
@@ -46,8 +41,6 @@ public class BootPackager {
         File[] raw = framesDir.listFiles();
         if (raw == null || raw.length == 0) throw new Exception("没有可打包的帧");
         Arrays.sort(raw, Comparator.comparing(File::getName));
-        int mainN = raw.length;
-        int tailN = tailFrames(fps);
         int mainN = raw.length;
         // 帧号宽度动态计算，同一 part 内等宽
         int digits = String.valueOf(mainN + 1).length();
