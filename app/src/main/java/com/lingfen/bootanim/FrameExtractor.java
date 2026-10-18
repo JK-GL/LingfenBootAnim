@@ -100,6 +100,9 @@ public class FrameExtractor {
             long emitted = 0;
 
             for (int i = 0; i < total; i++) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("用户已取消抽帧");
+                }
                 long tUs = i * stepUs;
                 Bitmap raw = mmr.getFrameAtTime(tUs,
                         MediaMetadataRetriever.OPTION_CLOSEST);

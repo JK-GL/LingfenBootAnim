@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
                     st = state,
                     onPickVideo = { pickVideo.launch(arrayOf("video/*")) },
                     onGenerate = { startGenerate() },
-                    onCancel = { state.cancelled = true },
+                    onCancel = { cancelGenerate() },
                     onPickZip = {
                         pickZip.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                     },
@@ -122,7 +122,20 @@ class MainActivity : ComponentActivity() {
             .show()
     }
 
-    // ── 生成流程 ──────────────────────────────
+    // ── 生成与取消流程 ──────────────────────────
+    private var generateThread: Thread? = null
+
+    /** 用户点击「取消生成」：UI 瞬关 + 线程中断 + 状态清空 */
+    private fun cancelGenerate() {
+        state.cancelled = true
+        state.generating = false
+        state.percent = 0
+        state.stepDetail = ""
+        state.stepIndex = 0
+        generateThread?.interrupt()
+        generateThread = null
+    }
+
     private fun startGenerate() {
         val uri = state.videoUri ?: return
         val w = state.outW
@@ -136,14 +149,14 @@ class MainActivity : ComponentActivity() {
         state.percent = 0
         state.stepDetail = ""
 
-        Thread {
+        val thread = Thread {
             val workDir = File(cacheDir, "work_${System.currentTimeMillis()}")
             workDir.mkdirs()
             try {
                 // ① 分析视频
                 ui { state.stepIndex = 0; state.percent = 3; state.stepDetail = "%.1fs".format(state.videoDuration) }
                 Thread.sleep(180)
-                if (state.cancelled) return@Thread
+                if (state.cancelled || Thread.currentThread().isInterrupted) return@Thread
 
                 // ② 抽取帧：使用用户选定的真实画质（70–100，默认 85）
                 val quality = state.quality
@@ -153,19 +166,22 @@ class MainActivity : ComponentActivity() {
                 FrameExtractor.extract(this, uri, workDir, w, h, fps, target, quality,
                     object : FrameExtractor.Progress {
                         override fun onProgress(done: Int, total: Int) {
-                            if (state.cancelled) return
+                            if (state.cancelled || Thread.currentThread().isInterrupted) return
                             ui {
-                                state.percent = 5 + (done.toFloat() / total * 75).toInt()
-                                state.stepDetail = "$done/$total"
+                                if (!state.cancelled && state.generating) {
+                                    state.percent = 5 + (done.toFloat() / total * 75).toInt()
+                                    state.stepDetail = "$done/$total"
+                                }
                             }
                         }
                         override fun onStatus(msg: String?) {}
                     })
-                if (state.cancelled) return@Thread
+                if (state.cancelled || Thread.currentThread().isInterrupted) return@Thread
 
                 // ③ 起始定格
                 ui { state.stepIndex = 2; state.percent = 81 }
                 Thread.sleep(120)
+                if (state.cancelled || Thread.currentThread().isInterrupted) return@Thread
 
                 // ④ 打包主体
                 ui { state.stepIndex = 3; state.percent = 83 }
@@ -173,19 +189,22 @@ class MainActivity : ComponentActivity() {
                 BootPackager.packageFrames(workDir, outZip, w, h, fps,
                     object : BootPackager.Progress {
                         override fun onProgress(done: Int, total: Int) {
-                            if (state.cancelled) return
+                            if (state.cancelled || Thread.currentThread().isInterrupted) return
                             ui {
-                                state.percent = 83 + (done.toFloat() / total * 14).toInt()
-                                state.stepDetail = "$done/$total"
+                                if (!state.cancelled && state.generating) {
+                                    state.percent = 83 + (done.toFloat() / total * 14).toInt()
+                                    state.stepDetail = "$done/$total"
+                                }
                             }
                         }
                         override fun onStatus(msg: String?) {}
                     })
-                if (state.cancelled) return@Thread
+                if (state.cancelled || Thread.currentThread().isInterrupted) return@Thread
 
                 // ⑤ 收尾定格
                 ui { state.stepIndex = 4; state.percent = 97 }
                 Thread.sleep(120)
+                if (state.cancelled || Thread.currentThread().isInterrupted) return@Thread
 
                 // ⑥ 校验 + 保存
                 ui { state.stepIndex = 5; state.percent = 99 }
@@ -195,24 +214,38 @@ class MainActivity : ComponentActivity() {
                     StoragePublisher.publishLegacy(outZip, outZip.name)
                 }
 
-                ui {
-                    state.percent = 100
-                    state.generating = false
-                    state.lastZip = outZip
-                    state.lastZipBytes = outZip.length()
-                    // 不自动打开预览，由用户在结果卡点击
+                if (!state.cancelled) {
+                    ui {
+                        state.percent = 100
+                        state.generating = false
+                        state.lastZip = outZip
+                        state.lastZipBytes = outZip.length()
+                    }
                 }
 
+            } catch (e: InterruptedException) {
+                // 用户主动取消，静默退出
             } catch (e: Exception) {
-                ui {
-                    state.generating = false
-                    state.percent = 0
-                    state.error = e.message ?: "生成失败"
+                if (!state.cancelled) {
+                    ui {
+                        state.generating = false
+                        state.percent = 0
+                        state.error = e.message ?: "生成失败"
+                    }
                 }
             } finally {
                 FrameExtractor.deleteRecursive(workDir)
+                if (state.cancelled) {
+                    ui {
+                        state.generating = false
+                        state.percent = 0
+                        state.stepDetail = ""
+                    }
+                }
             }
-        }.start()
+        }
+        generateThread = thread
+        thread.start()
     }
 
     private fun ui(block: () -> Unit) = runOnUiThread(block)

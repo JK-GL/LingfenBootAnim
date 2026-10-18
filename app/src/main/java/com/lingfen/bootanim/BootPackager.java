@@ -78,6 +78,9 @@ public class BootPackager {
 
             if (cb != null) cb.onStatus("写入主体（" + mainN + " 帧，精准秒数）…");
             for (int i = 0; i < mainN; i++) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("用户已取消打包");
+                }
                 zip.putFile(String.format("part0/%0" + digits + "d.jpg", i), raw[i]);
                 done++;
                 if (cb != null && (i % 10 == 0 || i == mainN - 1)) cb.onProgress(done, totalSteps);

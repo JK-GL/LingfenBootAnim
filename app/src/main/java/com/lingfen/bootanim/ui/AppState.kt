@@ -30,7 +30,7 @@ class AppState {
     var percent: Int by mutableStateOf(0)
     var stepDetail: String by mutableStateOf("")
 
-    var cancelled: Boolean = false
+    @Volatile var cancelled: Boolean = false
     var error: String? by mutableStateOf(null)
 
     // 生成结果（不自动弹预览，只记录）
