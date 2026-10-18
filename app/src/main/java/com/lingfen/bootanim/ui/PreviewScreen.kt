@@ -45,6 +45,9 @@ fun PreviewScreen(
         if (!ok) {
             error = "解析失败：ZIP 内找不到有效的 desc.txt"
         } else {
+            // 一加载完成立即赋总秒数，无需等到点击播放才显示
+            total = p.totalSeconds
+            elapsed = 0.0
             info = buildString {
                 append("总计 %.2fs".format(p.totalSeconds))
                 append(" · ${p.width}×${p.height}")

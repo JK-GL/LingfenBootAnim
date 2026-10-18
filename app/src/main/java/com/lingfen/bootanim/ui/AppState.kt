@@ -62,7 +62,7 @@ class AppState {
     val hasVideo: Boolean get() = videoUri != null
 
     fun reset() {
-        targetSeconds = if (videoDuration >= 6.0) 6.0 else videoDuration
+        targetSeconds = videoDuration
         quality = 85
         estimatedBytes = 0L
     }

@@ -78,8 +78,8 @@ class MainActivity : ComponentActivity() {
             state.videoW = realW
             state.videoH = realH
             state.videoDuration = durMs / 1000.0
-            // 规范：车机开机窗口 6.0~6.5 秒，默认停在黄金时长 6.0 秒（若不足 6 秒则为原片时长）
-            state.targetSeconds = if (state.videoDuration >= 6.0) 6.0 else state.videoDuration
+            // 默认光标停留在原视频完整时长，向左滑动时受最低 6.0 秒下限门禁约束
+            state.targetSeconds = state.videoDuration
             state.estimatedBytes = 0L
         } catch (_: Exception) {
         } finally {
