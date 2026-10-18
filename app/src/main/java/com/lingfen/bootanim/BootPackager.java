@@ -77,12 +77,9 @@ public class BootPackager {
 
         try (StoredZipWriter zip = new StoredZipWriter(outZip)) {
             // desc.txt —— 开头零停顿（c 1 0 part0 一气呵成播完），末尾仅保留1帧车机备用防黑屏（p 0 0 part1）
-            String desc = w + " " + h + " " + fps + "
-"
-                    + "c 1 0 part0
-"
-                    + "p 0 0 part1
-";
+            String desc = w + " " + h + " " + fps + "\n"
+                    + "c 1 0 part0\n"
+                    + "p 0 0 part1\n";
             zip.put("desc.txt", desc.getBytes(StandardCharsets.US_ASCII));
             done++;
 
