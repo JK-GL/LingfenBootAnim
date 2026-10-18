@@ -150,10 +150,12 @@ fun MainScreen(
                 Spacer(Modifier.height(4.dp))
 
                 if (st.hasVideo) {
+                    val minSec = st.minSeconds
+                    val maxSec = maxOf(minSec, st.videoDuration)
                     WheelPicker(
-                        value = st.targetSeconds,
-                        min = 1.0,
-                        max = maxOf(1.0, st.videoDuration),
+                        value = st.targetSeconds.coerceIn(minSec, maxSec),
+                        min = minSec,
+                        max = maxSec,
                         step = 0.5,
                         onChange = { st.targetSeconds = it },
                         format = { if (it % 1.0 == 0.0) it.toInt().toString() else "%.1f".format(it) }
@@ -292,6 +294,8 @@ fun SpeedBar(st: AppState) {
 
     val stateText = when {
         !st.hasVideo -> "选择视频后开始"
+        st.videoDuration < 6.0 -> "源视频较短 · 开机末尾保持定格"
+        over in -0.55..0.05 -> "开机黄金窗口 (6.0–6.5s)"
         over > 0.05 -> "超出开机窗口 %.1fs (正常播放)".format(over)
         else -> "开机窗口内 · 完美播放"
     }

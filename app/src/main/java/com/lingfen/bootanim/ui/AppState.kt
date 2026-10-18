@@ -56,10 +56,13 @@ class AppState {
     /** 尾帧数（1 秒定格 = 25 帧） */
     val tailFrames: Int get() = outFps
 
+    /** 最低合规时长：车机开机窗口 6.0~6.5 秒 */
+    val minSeconds: Double get() = if (videoDuration >= 6.0) 6.0 else videoDuration
+
     val hasVideo: Boolean get() = videoUri != null
 
     fun reset() {
-        targetSeconds = videoDuration
+        targetSeconds = if (videoDuration >= 6.0) 6.0 else videoDuration
         quality = 85
         estimatedBytes = 0L
     }
