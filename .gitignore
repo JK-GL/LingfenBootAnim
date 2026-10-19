@@ -16,3 +16,5 @@ captures/
 /simulate_app.py
 /verify_zip_logic.py
 /push_sync.py
+/push_v2.py
+/push_fast.py
