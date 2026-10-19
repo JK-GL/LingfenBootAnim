@@ -16,6 +16,46 @@ import kotlin.math.max
 object SizeEstimator {
 
     /**
+     * 单帧字节数缓存。
+     *
+     * 关键事实：单帧 JPEG 字节数只取决于 (视频, 时长, 画布, 画质)，
+     * 与帧率、帧数无关。总字节 = 单帧 × 帧数。
+     * 所以拖动帧率/时长时不需要重新解码，只做一次乘法即可。
+     */
+    private data class FrameKey(
+        val uri: String,
+        val durMs: Long,
+        val w: Int,
+        val h: Int,
+        val quality: Int,
+    )
+
+    private val cacheLock = Any()
+    private var cachedKey: FrameKey? = null
+    private var cachedPerFrame: Long = 0L
+
+    /** 取单帧平均字节数，命中缓存直接返回（帧率变化时零解码） */
+    fun perFrameBytes(
+        ctx: Context,
+        uri: Uri,
+        durationSec: Double,
+        outW: Int,
+        outH: Int,
+        quality: Int,
+    ): Long {
+        val key = FrameKey(uri.toString(), (durationSec * 1000).toLong(), outW, outH, quality)
+        synchronized(cacheLock) {
+            if (key == cachedKey && cachedPerFrame > 0L) return cachedPerFrame
+        }
+        val measured = sampleFrameBytes(ctx, uri, durationSec, outW, outH, quality)
+        synchronized(cacheLock) {
+            cachedKey = key
+            cachedPerFrame = measured
+        }
+        return measured
+    }
+
+    /**
      * @return 估算总字节数（含 part0 主体帧 + part1 末帧）
      */
     fun estimate(
@@ -28,9 +68,8 @@ object SizeEstimator {
         tailFrames: Int,
         quality: Int = 88,
     ): Long {
-        val perFrame = sampleFrameBytes(ctx, uri, durationSec, outW, outH, quality)
-        val total = perFrame * (frames + 1 + tailFrames)
-        return total
+        val perFrame = perFrameBytes(ctx, uri, durationSec, outW, outH, quality)
+        return perFrame * (frames + 1 + tailFrames)
     }
 
     /** 抽 5 帧取平均（含缩放 + JPEG 压缩，与真实打包一致） */

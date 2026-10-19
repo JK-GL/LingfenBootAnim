@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.zip.ZipFile
 import kotlin.math.max
 
@@ -17,6 +19,7 @@ import kotlin.math.max
  *
  * 关键：不能一次性解码全部帧（500 帧 1080p 会 OOM），
  * 用 LRU 缓存 8 帧，播放时按需解码 + 预解码下一帧。
+ * 预览解码用 inSampleSize=2 降到 1/4 像素量，才能跟上 60fps 的帧间隔。
  */
 class ZipPlayer(private val zipFile: File) {
 
@@ -39,6 +42,9 @@ class ZipPlayer(private val zipFile: File) {
     private val timeline = ArrayList<Frame>()
     private val cache = LinkedHashMap<String, Bitmap>(8, 0.75f, true)
     private val handler = Handler(Looper.getMainLooper())
+
+    /** 串行解码线程：避免 60fps 下每帧 new Thread 造成线程堆积 */
+    private val decodeExec = Executors.newSingleThreadExecutor()
 
     private var playing = false
     private var baseTime = 0L
@@ -132,8 +138,12 @@ class ZipPlayer(private val zipFile: File) {
 
     fun release() {
         pause()
-        cache.values.forEach { it.recycle() }
-        cache.clear()
+        try { (decodeExec as? ThreadPoolExecutor)?.queue?.clear() } catch (_: Exception) {}
+        decodeExec.shutdownNow()
+        synchronized(cache) {
+            cache.values.forEach { it.recycle() }
+            cache.clear()
+        }
         try { zip?.close() } catch (_: Exception) {}
     }
 
@@ -157,7 +167,10 @@ class ZipPlayer(private val zipFile: File) {
                 onEnd?.invoke()
                 return
             }
-            handler.postDelayed(this, 33)
+            // 轮询间隔随帧率自适应：60fps 帧间隔 16.7ms，必须用 8ms 轮询才能翻出每一帧。
+            // 原来写死 33ms，等于把 60fps 的包压成 30fps 预览，会误导判断。
+            val pollMs = max(8L, (1000.0 / fps / 2.0).toLong())
+            handler.postDelayed(this, pollMs)
         }
     }
 
@@ -168,16 +181,25 @@ class ZipPlayer(private val zipFile: File) {
         return 0
     }
 
-    /** 按需解码 + LRU 8 帧 */
+    /** 按需解码 + LRU 8 帧；串行执行，并丢弃过期解码请求 */
     private fun decodeAsync(idx: Int, cb: (Bitmap?) -> Unit) {
         val f = timeline.getOrNull(idx) ?: return cb(null)
-        cache[f.path]?.let { return cb(it) }
+        synchronized(cache) { cache[f.path] }?.let { return cb(it) }
 
-        Thread {
-            val bmp = try {
-                val entry = zip?.getEntry(f.path) ?: return@Thread cb(null)
-                zip?.getInputStream(entry).use { BitmapFactory.decodeStream(it) }
-            } catch (e: Exception) { null }
+        // 丢掉队列里尚未开始的旧请求：60fps 下若解码追不上，不丢会无限堆积
+        (decodeExec as? ThreadPoolExecutor)?.queue?.clear()
+
+        decodeExec.execute {
+            val entry = try { zip?.getEntry(f.path) } catch (_: Exception) { null }
+            val bmp: Bitmap? = if (entry == null) null else try {
+                zip?.getInputStream(entry).use { ins ->
+                    val opts = BitmapFactory.Options().apply {
+                        // 预览只需屏幕可见精度，降采样 4 倍像素量，解码快 3~4 倍、内存省 75%
+                        inSampleSize = 2
+                    }
+                    BitmapFactory.decodeStream(ins, null, opts)
+                }
+            } catch (_: Exception) { null }
 
             if (bmp != null) {
                 synchronized(cache) {
@@ -190,7 +212,7 @@ class ZipPlayer(private val zipFile: File) {
                 }
             }
             handler.post { cb(bmp) }
-        }.start()
+        }
     }
 
     /** 预取首帧 */

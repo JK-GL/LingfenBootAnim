@@ -19,7 +19,10 @@ class AppState {
     var canvasIndex: Int by mutableStateOf(0)          // 0=1080p 1=720p
     var targetSeconds: Double by mutableStateOf(0.0)
     var quality: Int by mutableStateOf(85)             // 50~100 连续画质波轮，默认 85（推荐 85–92）
-    var outFps: Int by mutableStateOf(25)              // 25~60 连续帧率波轮，默认 25
+
+    /** 车机屏只有 50Hz / 60Hz，帧率必须整除刷新率才不会周期抖动，故只保留 4 个真实可用档位 */
+    val fpsTiers = listOf(25, 30, 50, 60)
+    var fpsIndex: Int by mutableStateOf(1)             // 默认 30（60Hz 屏最佳平衡档）
 
     // 估算
     var estimatedBytes: Long by mutableStateOf(0L)
@@ -51,7 +54,7 @@ class AppState {
     /** 等效倍速 */
     val speed: Double get() = if (targetSeconds <= 0.0) 1.0 else videoDuration / targetSeconds
 
-    /** 帧率 25~60 可选；决定帧间隔，需与车机屏幕刷新率整除才不抖 */
+    /** 主体帧数 = 目标播放时长 × 帧率（四档之一） */
     val mainFrames: Int get() = max(1, (targetSeconds * outFps).roundToInt())
 
     /** 车机备用末帧：打包时只写 1 帧，用于播完防黑屏 */
@@ -60,14 +63,14 @@ class AppState {
     /** 真实落盘时长 = 帧数 ÷ 帧率（与波轮目标值可能有 ±半帧误差，界面以此为准） */
     val actualSeconds: Double get() = mainFrames / outFps.toDouble()
 
-    /** 帧率与常见车机刷新率的整除关系提示 */
-    val fpsHint: String get() = when {
-        outFps <= 0 -> ""
-        60 % outFps == 0 && 50 % outFps == 0 -> "60Hz/50Hz 均整除"
-        60 % outFps == 0 -> "适配 60Hz 屏"
-        50 % outFps == 0 -> "适配 50Hz 屏"
-        else -> "与 60/50Hz 不整除，可能轻微抖动"
-    }
+    /** 当前帧率（只能取 fpsTiers 中的值，四档都整除 50 或 60，天然无抖动） */
+    val outFps: Int get() = fpsTiers[fpsIndex.coerceIn(0, fpsTiers.lastIndex)]
+
+    /** 当前帧率对应的适配屏（60Hz 优先，国产车机绝大多数是 60Hz） */
+    val fpsPanel: String get() = if (60 % outFps == 0) "60Hz 屏" else "50Hz 屏"
+
+    /** 帧率提示：直接告诉用户这档适配哪种屏 */
+    val fpsHint: String get() = "适配 $fpsPanel"
 
     /** 最低合规时长：车机开机窗口 6.0~6.5 秒 */
     val minSeconds: Double get() = if (videoDuration >= 6.0) 6.0 else videoDuration

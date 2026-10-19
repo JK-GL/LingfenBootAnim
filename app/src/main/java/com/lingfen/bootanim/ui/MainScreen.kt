@@ -50,7 +50,11 @@ fun MainScreen(
         st.estimatedBytes = fastTotal
         st.estimating = true
 
-        // 后台异步精准修正
+        // 拖拽防抖：停手 220ms 后才做真实试压。
+        // 否则画质 51 档、帧率 35 档每滑一格都会触发一次 5 帧解码，CPU 被占满导致界面发涩。
+        kotlinx.coroutines.delay(220)
+
+        // 后台异步精准修正（单帧字节数有缓存，只有换视频/画布/画质才会真解码）
         val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 SizeEstimator.estimate(
@@ -105,28 +109,30 @@ fun MainScreen(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(C.stroke))
                 Spacer(Modifier.height(11.dp))
 
-                // 帧率（25–60 连续调节，默认 25；右侧提示与刷新率整除关系）
+                // 帧率（4 档真实可用值，默认 30；只有能整除 50/60Hz 的值才保留）
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SectionTitle("帧率", "决定帧间隔。车机屏多为 60Hz，帧率能整除刷新率才不抖；帧率越高越顺，但帧数与体积同比增加。") { showHelp("帧率说明", "播放帧率（25–60 fps，默认 25）。\n\n• 60Hz 屏：30 或 60 能整除，最顺滑；25 会周期性抖动。\n• 50Hz 屏：25 或 50 能整除，最顺滑。\n• 帧率越高，帧数 = 时长 × 帧率 同比增加，ZIP 体积也同比增加。\n• 车机解码能力有限，60fps 在低端车机上可能解不动反而更卡，建议先试 30。\n• 帧率不能无中生有：源片只有 25fps 时，输出 60fps 不会更顺，只会更大。") }
+                    SectionTitle("帧率", "车机屏只有 50Hz 和 60Hz 两种，帧率必须整除刷新率才不抖，所以只保留 4 个可用档位。") { showHelp("帧率说明", "播放帧率，只保留能整除车机屏幕刷新率的 4 个档位。\n\n• 25 fps：适配 50Hz 屏，帧数最少、体积最小。\n• 30 fps：适配 60Hz 屏，最推荐的平衡档，比 25 只多 20% 帧数。\n• 50 fps：适配 50Hz 屏的高帧档，画面最顺但体积翻倍。\n• 60 fps：适配 60Hz 屏的最高档，对车机解码能力要求最高，低端车机可能解不动反而更卡。\n\n帧率越高，帧数 = 时长 × 帧率 同比增加，ZIP 体积也同比增加。\n注意：帧率不能无中生有，源片只有 25fps 时输出 60fps 不会更顺，只会更大。") }
                     Text(
                         "${st.outFps} fps · ${st.fpsHint}",
-                        color = if (60 % st.outFps == 0 || 50 % st.outFps == 0) C.ok else C.t2,
+                        color = C.ok,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
-                Spacer(Modifier.height(4.dp))
-                WheelPicker(
-                    value = st.outFps.toDouble(),
-                    min = 25.0,
-                    max = 60.0,
-                    step = 1.0,
-                    onChange = { st.outFps = it.roundToInt() },
-                    format = { it.toInt().toString() }
+                Spacer(Modifier.height(8.dp))
+                SegmentedControl(
+                    options = listOf(
+                        "25" to "50Hz",
+                        "30" to "60Hz 推荐",
+                        "50" to "50Hz 高帧",
+                        "60" to "60Hz 高帧",
+                    ),
+                    selectedIndex = st.fpsIndex,
+                    onSelect = { st.fpsIndex = it },
                 )
 
                 Spacer(Modifier.height(11.dp))
