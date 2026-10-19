@@ -66,14 +66,18 @@ bootanimation.zip
 
 ## 构建
 
-```bash
-# 本地
-./gradlew assembleDebug
+本仓库只包含纯源码，不携带任何构建工具二进制。三种方式任选：
 
-# 或者 push 到 GitHub，Actions 会自动出 APK（见 .github/workflows/build.yml）
+```bash
+# 方式一：Android Studio 直接 Open 本目录，Sync 后 Build APK
+
+# 方式二：本机已装 Gradle 8.7+（或 Android Studio 自带 Gradle）
+gradle assembleRelease
+
+# 方式三：推到 GitHub，Actions 会自动装好 Gradle 并出 APK（见 .github/workflows/build.yml）
 ```
 
-产物在 `app/build/outputs/apk/debug/`。
+产物在 `app/build/outputs/apk/release/`。
 
 ## 技术实现
 
@@ -81,7 +85,6 @@ bootanimation.zip
 - 抽帧：`MediaMetadataRetriever.getFrameAtTime()`（微秒级）+ `Canvas` 等比缩放居中裁切
 - 打包：手写 ZIP 写入器（`StoredZipWriter`），精确控制每个字节——因为 `java.util.zip.ZipOutputStream` 默认 DEFLATE，不符合规范
 - 存储：API 29+ 走 MediaStore（零权限）；API 28 走公共下载目录（需存储权限）
-
 
 ## License
 
