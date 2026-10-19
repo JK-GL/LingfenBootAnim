@@ -16,7 +16,7 @@ import kotlin.math.max
 object SizeEstimator {
 
     /**
-     * @return 估算总字节数（含 part0 / part2）
+     * @return 估算总字节数（含 part0 主体帧 + part1 末帧）
      */
     fun estimate(
         ctx: Context,

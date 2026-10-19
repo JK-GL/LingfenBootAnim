@@ -30,9 +30,10 @@ private val ITEM_W = 50.dp
 /**
  * 通用横向波轮选择器
  *
- * 时长和质量共用同一个组件：
- *   时长：min=0.5, max=源时长, step=0.5
- *   质量：min=80,  max=90,   step=1
+ * 帧率、画质、时长共用同一个组件：
+ *   帧率：min=25,  max=60,       step=1
+ *   画质：min=50,  max=100,      step=1
+ *   时长：min=6.0, max=源时长,   step=0.5
  *
  * 初始定位用 rememberLazyListState(initialFirstVisibleItemIndex)，
  * 不依赖事后 scrollToItem（首帧布局未完成时会静默失败，表现为停在最小值）。

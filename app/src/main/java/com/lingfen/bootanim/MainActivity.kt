@@ -151,6 +151,7 @@ class MainActivity : ComponentActivity() {
         state.stepIndex = 0
         state.percent = 0
         state.stepDetail = ""
+        state.warnings = emptyList()
 
         val thread = Thread {
             val workDir = File(cacheDir, "work_${System.currentTimeMillis()}")
@@ -161,7 +162,7 @@ class MainActivity : ComponentActivity() {
                 Thread.sleep(180)
                 if (state.cancelled || Thread.currentThread().isInterrupted) return@Thread
 
-                // ② 抽取帧：使用用户选定的真实画质（70–100，默认 85）
+                // ② 抽取帧：使用用户选定的真实画质（50–100，默认 85）与帧率（25–60，默认 25）
                 val quality = state.quality
                 state.usedQuality = quality
                 ui { state.stepIndex = 1; state.percent = 5; state.stepDetail = "抽帧 (q$quality)" }
@@ -197,7 +198,7 @@ class MainActivity : ComponentActivity() {
                 // ④ 打包主体
                 ui { state.stepIndex = 3; state.percent = 83 }
                 val outZip = File(cacheDir, outNameOf(state))
-                BootPackager.packageFrames(workDir, outZip, w, h, fps,
+                val packResult = BootPackager.packageFrames(workDir, outZip, w, h, fps,
                     object : BootPackager.Progress {
                         override fun onProgress(done: Int, total: Int) {
                             if (state.cancelled || Thread.currentThread().isInterrupted) return
@@ -231,6 +232,7 @@ class MainActivity : ComponentActivity() {
                         state.generating = false
                         state.lastZip = outZip
                         state.lastZipBytes = outZip.length()
+                        state.warnings = packResult.warnings.toList()
                     }
                 }
 

@@ -35,9 +35,9 @@ fun MainScreen(
     var helpDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
     val showHelp = { title: String, content: String -> helpDialog = title to content }
 
-    // 当视频/尺寸/时长/画质改变时，异步试压测体积
+    // 当视频/尺寸/时长/画质/帧率改变时，异步试压测体积
     // 快速体积响应：选了波轮 0 毫秒秒变，绝不卡死等待
-    LaunchedEffect(st.videoUri, st.canvasIndex, st.targetSeconds, st.quality) {
+    LaunchedEffect(st.videoUri, st.canvasIndex, st.targetSeconds, st.quality, st.outFps) {
         val uri = st.videoUri ?: return@LaunchedEffect
         if (st.videoDuration <= 0) return@LaunchedEffect
         val frames = st.mainFrames
@@ -84,7 +84,7 @@ fun MainScreen(
             VideoCard(st = st, onPick = onPickVideo)
             Spacer(Modifier.height(12.dp))
 
-            // ② 制作参数（三合一合并卡片：画布 + 画质 70~100 + 时长波轮）
+            // ② 制作参数（四合一合并卡片：画布 + 帧率 25~60 + 画质 50~100 + 时长波轮）
             CardBox {
                 // 画布
                 Row(
@@ -105,7 +105,35 @@ fun MainScreen(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(C.stroke))
                 Spacer(Modifier.height(11.dp))
 
-                // 画质（70–100 连续调节，默认 85，右侧提示推荐 85–92）
+                // 帧率（25–60 连续调节，默认 25；右侧提示与刷新率整除关系）
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SectionTitle("帧率", "决定帧间隔。车机屏多为 60Hz，帧率能整除刷新率才不抖；帧率越高越顺，但帧数与体积同比增加。") { showHelp("帧率说明", "播放帧率（25–60 fps，默认 25）。\n\n• 60Hz 屏：30 或 60 能整除，最顺滑；25 会周期性抖动。\n• 50Hz 屏：25 或 50 能整除，最顺滑。\n• 帧率越高，帧数 = 时长 × 帧率 同比增加，ZIP 体积也同比增加。\n• 车机解码能力有限，60fps 在低端车机上可能解不动反而更卡，建议先试 30。\n• 帧率不能无中生有：源片只有 25fps 时，输出 60fps 不会更顺，只会更大。") }
+                    Text(
+                        "${st.outFps} fps · ${st.fpsHint}",
+                        color = if (60 % st.outFps == 0 || 50 % st.outFps == 0) C.ok else C.t2,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                WheelPicker(
+                    value = st.outFps.toDouble(),
+                    min = 25.0,
+                    max = 60.0,
+                    step = 1.0,
+                    onChange = { st.outFps = it.roundToInt() },
+                    format = { it.toInt().toString() }
+                )
+
+                Spacer(Modifier.height(11.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(C.stroke))
+                Spacer(Modifier.height(11.dp))
+
+                // 画质（50–100 连续调节，默认 85，右侧提示推荐 85–92）
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -139,10 +167,10 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SectionTitle("时长", "播放时长。固定 25fps 标准；全片均匀重采样加速，不剪断视频，缩短时长可大幅降低文件体积。") { showHelp("时长说明", "播放动画时长设置（固定 25fps 车机标准）。\n\n• 默认停留在原视频时长；\n• 向左滑动可加快播放速度并大幅压减体积；\n• 车机开机窗口约为 6.5 秒，最低下限保护为 6.0 秒，避免开机过早放完定格。") }
+                    SectionTitle("时长", "播放时长。全片均匀重采样加速，不剪断视频；缩短时长可大幅降低帧数与文件体积。") { showHelp("时长说明", "播放动画时长设置。\n\n• 默认停留在原视频时长；\n• 向左滑动可加快播放速度并大幅压减帧数与体积；\n• 车机开机窗口约为 6.5 秒，最低下限保护为 6.0 秒，避免开机过早放完定格；\n• 实际落盘时长 = 帧数 ÷ 帧率，可能与你拖到的值有半帧以内误差。") }
                     Text(
                         if (st.hasVideo)
-                            "%.1f 秒 · 原 %.1f 秒".format(st.targetSeconds, st.videoDuration)
+                            "%.1f 秒 · %.0f 帧 · 原 %.1f 秒".format(st.targetSeconds, st.mainFrames.toDouble(), st.videoDuration)
                         else "— 秒 · 原 — 秒",
                         color = C.t2,
                         fontSize = 11.sp,
@@ -168,6 +196,26 @@ fun MainScreen(
                     }
                 }
 
+                // 实时规范预警：帧数 / 体积任一越线当场提示，不等打包完才发现
+                if (st.hasVideo) {
+                    val overFrames = st.mainFrames > 4096
+                    val overBytes = st.estimatedBytes > 128L * 1024 * 1024
+                    if (overFrames || overBytes) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            buildString {
+                                if (overFrames) append("⚠ ${st.mainFrames} 帧超过车机规范上限 4096")
+                                if (overFrames && overBytes) append("；")
+                                if (overBytes) append("⚠ 约 %.0f Mb 超过规范上限 128 MiB".format(st.estimatedBytes / 1048576.0))
+                                append("，请缩短时长或降低帧率/画质")
+                            },
+                            color = C.bad,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                        )
+                    }
+                }
+
                 Spacer(Modifier.height(8.dp))
                 SpeedBar(st)
             }
@@ -178,8 +226,8 @@ fun MainScreen(
                 SectionTitle("结果预览") {}
                 Spacer(Modifier.height(6.dp))
                 InfoRow("画布", "${st.outW} × ${st.outH}")
-                InfoRow("帧率", if (st.hasVideo) "${st.outFps} fps (标准)" else "—")
-                InfoRow("主体帧数", if (st.hasVideo) "${st.mainFrames} 帧" else "—")
+                InfoRow("帧率", if (st.hasVideo) "${st.outFps} fps · ${st.fpsHint}" else "—")
+                InfoRow("主体帧数", if (st.hasVideo) "${st.mainFrames} 帧 · 实际 %.2f 秒".format(st.actualSeconds) else "—")
                 val sizeText = when {
                     !st.hasVideo -> "—"
                     st.estimating -> "重新计算中… 约 %.1f Mb".format(st.estimatedBytes / 1048576.0)
@@ -233,6 +281,13 @@ fun MainScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text("✕", color = C.ok.copy(alpha = 0.7f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    // 打包自检 / 规范预警（128 MiB、4096 帧、desc 校验等）
+                    if (st.warnings.isNotEmpty()) {
+                        Spacer(Modifier.height(6.dp))
+                        st.warnings.forEach { w ->
+                            Text("⚠ $w", color = C.bad, fontSize = 11.sp, lineHeight = 15.sp)
                         }
                     }
                 }

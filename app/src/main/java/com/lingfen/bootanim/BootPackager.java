@@ -12,11 +12,10 @@ import java.util.List;
 /**
  * 把 frames/ 里的帧组装成合规 bootanimation.zip。
  *
- * desc.txt（规范三段式，主体绝不循环）：
+ * desc.txt（规范两段式，主体绝不循环）：
  *   1920 1080 25
- *   c 1 10 part0      ← 起始定格 0.4s
- *   c 1 0  part1      ← 主体一次播完
- *   p 0 0  part2      ← 末帧定格
+ *   c 1 0 part0       ← 主体一次播完，零停顿
+ *   p 0 0 part1       ← 末帧仅 1 帧，播完保持画面防黑屏
  */
 public class BootPackager {
 

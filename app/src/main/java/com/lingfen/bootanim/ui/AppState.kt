@@ -19,6 +19,7 @@ class AppState {
     var canvasIndex: Int by mutableStateOf(0)          // 0=1080p 1=720p
     var targetSeconds: Double by mutableStateOf(0.0)
     var quality: Int by mutableStateOf(85)             // 50~100 连续画质波轮，默认 85（推荐 85–92）
+    var outFps: Int by mutableStateOf(25)              // 25~60 连续帧率波轮，默认 25
 
     // 估算
     var estimatedBytes: Long by mutableStateOf(0L)
@@ -38,6 +39,9 @@ class AppState {
     var lastZipBytes: Long by mutableStateOf(0L)
     var usedQuality: Int by mutableStateOf(85)
 
+    /** 打包自检/规范预警（128 MiB、4096 帧、desc 校验等），生成后展示给用户 */
+    var warnings: List<String> by mutableStateOf(emptyList())
+
     // 预览
     var previewZip: java.io.File? by mutableStateOf(null)
 
@@ -47,14 +51,23 @@ class AppState {
     /** 等效倍速 */
     val speed: Double get() = if (targetSeconds <= 0.0) 1.0 else videoDuration / targetSeconds
 
-    /** 严格遵循规范：帧率恒定为 25 fps 标准 */
-    val outFps: Int get() = 25
-
-    /** 主体帧数 = 目标播放时长 × 25 fps（时长缩短，帧数减少，体积真减！） */
+    /** 帧率 25~60 可选；决定帧间隔，需与车机屏幕刷新率整除才不抖 */
     val mainFrames: Int get() = max(1, (targetSeconds * outFps).roundToInt())
 
-    /** 尾帧数（1 秒定格 = 25 帧） */
-    val tailFrames: Int get() = outFps
+    /** 车机备用末帧：打包时只写 1 帧，用于播完防黑屏 */
+    val tailFrames: Int get() = 1
+
+    /** 真实落盘时长 = 帧数 ÷ 帧率（与波轮目标值可能有 ±半帧误差，界面以此为准） */
+    val actualSeconds: Double get() = mainFrames / outFps.toDouble()
+
+    /** 帧率与常见车机刷新率的整除关系提示 */
+    val fpsHint: String get() = when {
+        outFps <= 0 -> ""
+        60 % outFps == 0 && 50 % outFps == 0 -> "60Hz/50Hz 均整除"
+        60 % outFps == 0 -> "适配 60Hz 屏"
+        50 % outFps == 0 -> "适配 50Hz 屏"
+        else -> "与 60/50Hz 不整除，可能轻微抖动"
+    }
 
     /** 最低合规时长：车机开机窗口 6.0~6.5 秒 */
     val minSeconds: Double get() = if (videoDuration >= 6.0) 6.0 else videoDuration
