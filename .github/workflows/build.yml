@@ -29,8 +29,8 @@ jobs:
           echo "--- platforms ---"
           ls "$ANDROID_SDK_ROOT/platforms" || true
 
-      # 工程里没有二进制 gradle-wrapper.jar（我手写的 gradlew 只是引导壳），
-      # 所以这里显式安装 Gradle 8.7，与 gradle-wrapper.properties 声明的版本一致。
+      # 本仓库只保留纯源码，不携带 Gradle Wrapper 二进制，
+      # 这里显式安装 Gradle 8.7，与 gradle-wrapper.properties 声明的版本一致。
       - name: Install Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
