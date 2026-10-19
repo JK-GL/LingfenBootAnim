@@ -109,15 +109,15 @@ fun MainScreen(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(C.stroke))
                 Spacer(Modifier.height(11.dp))
 
-                // 帧率（4 档真实可用值，默认 30；只有能整除 50/60Hz 的值才保留）
+                // 帧率（4 档，默认 30；只保留能整除常见刷新率的值）
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SectionTitle("帧率", "车机屏只有 50Hz 和 60Hz 两种，帧率必须整除刷新率才不抖，所以只保留 4 个可用档位。") { showHelp("帧率说明", "播放帧率，只保留能整除车机屏幕刷新率的 4 个档位。\n\n• 25 fps：适配 50Hz 屏，帧数最少、体积最小。\n• 30 fps：适配 60Hz 屏，最推荐的平衡档，比 25 只多 20% 帧数。\n• 50 fps：适配 50Hz 屏的高帧档，画面最顺但体积翻倍。\n• 60 fps：适配 60Hz 屏的最高档，对车机解码能力要求最高，低端车机可能解不动反而更卡。\n\n帧率越高，帧数 = 时长 × 帧率 同比增加，ZIP 体积也同比增加。\n注意：帧率不能无中生有，源片只有 25fps 时输出 60fps 不会更顺，只会更大。") }
+                    SectionTitle("帧率", "帧率越高画面越顺，但帧数 = 时长 × 帧率，体积同比增加。这 4 档都能整除常见车机刷新率，避免周期性抖动。") { showHelp("帧率说明", "播放帧率，4 个档位都能整除常见车机刷新率，避免画面周期性抖动。\n\n• 25 fps：帧数最少，体积最小\n• 30 fps：平衡档，比 25 只多 20% 帧数\n• 50 fps：高帧档，体积约为 25 的两倍\n• 60 fps：最高档，对车机解码能力要求最高\n\n注意：帧率不能无中生有，源片只有 25fps 时输出 60fps 不会更顺，只会更大。低端车机解不动 60fps 时会掉帧，反而比 30 更卡。") }
                     Text(
-                        "${st.outFps} fps · ${st.fpsHint}",
+                        "${st.outFps} fps",
                         color = C.ok,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
@@ -232,7 +232,7 @@ fun MainScreen(
                 SectionTitle("结果预览") {}
                 Spacer(Modifier.height(6.dp))
                 InfoRow("画布", "${st.outW} × ${st.outH}")
-                InfoRow("帧率", if (st.hasVideo) "${st.outFps} fps · ${st.fpsHint}" else "—")
+                InfoRow("帧率", if (st.hasVideo) "${st.outFps} fps" else "—")
                 InfoRow("主体帧数", if (st.hasVideo) "${st.mainFrames} 帧 · 实际 %.2f 秒".format(st.actualSeconds) else "—")
                 val sizeText = when {
                     !st.hasVideo -> "—"

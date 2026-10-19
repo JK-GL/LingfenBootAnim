@@ -22,7 +22,7 @@ class AppState {
 
     /** 车机屏只有 50Hz / 60Hz，帧率必须整除刷新率才不会周期抖动，故只保留 4 个真实可用档位 */
     val fpsTiers = listOf(25, 30, 50, 60)
-    var fpsIndex: Int by mutableStateOf(1)             // 默认 30（60Hz 屏最佳平衡档）
+    var fpsIndex: Int by mutableStateOf(1)             // 默认 30（平衡档）
 
     // 估算
     var estimatedBytes: Long by mutableStateOf(0L)
@@ -65,12 +65,6 @@ class AppState {
 
     /** 当前帧率（只能取 fpsTiers 中的值，四档都整除 50 或 60，天然无抖动） */
     val outFps: Int get() = fpsTiers[fpsIndex.coerceIn(0, fpsTiers.lastIndex)]
-
-    /** 当前帧率对应的适配屏（60Hz 优先，国产车机绝大多数是 60Hz） */
-    val fpsPanel: String get() = if (60 % outFps == 0) "60Hz 屏" else "50Hz 屏"
-
-    /** 帧率提示：直接告诉用户这档适配哪种屏 */
-    val fpsHint: String get() = "适配 $fpsPanel"
 
     /** 最低合规时长：车机开机窗口 6.0~6.5 秒 */
     val minSeconds: Double get() = if (videoDuration >= 6.0) 6.0 else videoDuration
