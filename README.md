@@ -18,30 +18,32 @@
 
 这个 App 把上述规则全部固化进代码，选个视频点一下就行。
 
-## 功能
+## 功能（v0.4.4）
 
 | 功能 | 说明 |
 |---|---|
-| 选视频 | 支持 mp4 / mov / mkv 等，自动处理旋转元数据（竖拍转横屏不会躺倒） |
-| 画布 | 1920×1080（车机）/ 1280×720（720p 车机）/ 1080×1920（竖屏） |
-| 帧率 | 15 / 25 / 30 fps，**决定播放速度**（时长 = 帧数 ÷ 帧率） |
-| 时长 | 全片 / 限 15 秒 / 限 10 秒 |
-| 体积预估 | 选完视频立刻显示帧数、时长、预计体积，超 128 MiB 会警告 |
-| 打包 | 三段式 `c 1 10 part0` / `c 1 0 part1` / `p 0 0 part2`，末帧自动复制定格 |
+| 选视频 | 走系统 SAF 选择器，支持 mp4 / mov / mkv 等，自动处理旋转元数据（竖拍不会躺倒） |
+| 画布 | 1920×1080（1080p 车机）/ 1280×720（720p 车机） |
+| 帧率 | 固定 **25 fps**（车机标准），不可调 |
+| 时长 | 连续波轮，默认停在原片时长；向左拖动加速压缩，**最低 6.0 秒**（车机开机窗口保护） |
+| 画质 | 连续波轮 **50–100**，默认 85，推荐 85–92；越低体积越小 |
+| 体积预估 | 真实抽帧试压 + 快速公式双通道，拖动波轮即时响应，后台算完自动修正 |
+| 取消生成 | 任意进度可取消，UI 立即复原，后台线程毫秒级中断 |
+| 预览 | 生成的 ZIP 可全屏预览播放，进入即显示真实总秒数 |
+| 打包 | `c 1 0 part0`（主体一次播完）+ `p 0 0 part1`（1 帧末帧防黑屏） |
 | 导出 | 存到「下载/LingfenBoot/」，文件名取自视频名 |
+| 权限 | **零权限**（SAF + MediaStore，全程不申请存储权限） |
 
 ## 打包出来的结构
 
 ```
 bootanimation.zip
 ├── desc.txt          1920 1080 25
-│                     c 1 10 part0
-│                     c 1 0 part1
-│                     p 0 0 part2
-├── part0/000.jpg     起始定格（主体首帧，停 10 帧 ≈ 0.4s）
-├── part1/001.jpg     主体，一次播完，绝不循环
+│                     c 1 0 part0
+│                     p 0 0 part1
+├── part0/000.jpg     主体，一次播完，绝不循环
 │   └── ...（N 帧）
-└── part2/xxx.jpg     末帧复制 N 份，播完保持画面
+└── part1/xxx.jpg     末帧仅 1 帧，播完保持画面防黑屏
 ```
 
 ## 怎么用
@@ -62,7 +64,16 @@ bootanimation.zip
 
 - **开机只播前面几秒**：这是正常的。开机动画窗口约 6.5 秒，桌面就绪后动画进程就退出，动画再长也播不完。所以做长视频的话，把最精彩的部分放在**开头**。
 - **首帧/末帧是黑的**：很多视频本身是淡入淡出的，属于原片设计，不是 bug。
-- **动作变快**：帧率填高了就是加速播放（帧内容不变，只缩短每帧停留时间）。想慢就填低帧率。
+- **时长滑不到 6 秒以下**：这是刻意保护。低于 6 秒会在车机启动完成前就播完，导致画面定格傻等。
+
+## 接手须知
+
+1. **代码全在 `app/src/main/java/com/lingfen/bootanim/`**，没有 native 库、没有第三方二进制依赖，纯 Java + Kotlin + Compose。
+2. **改车机规范只需看两个文件**：`BootPackager.java`（desc.txt 与 ZIP 结构）、`FrameExtractor.java`（抽帧与缩放）。
+3. **改 UI 只需看 `ui/` 目录**，`MainScreen.kt` 是主页面，`AppState.kt` 是全部状态。
+4. **版本号在 `app/build.gradle`**：改 `versionCode` 与 `versionName` 即可。
+5. **CI 在 `.github/workflows/build.yml`**：推到 main 自动出 APK，产物在 Actions 的 Artifacts 里。
+6. **本仓库不携带 Gradle Wrapper**（`gradlew` / `gradle-wrapper.jar`），这是刻意的。若你想用 wrapper，本机装好 Gradle 后执行 `gradle wrapper` 即可自动生成。
 
 ## 构建
 
@@ -81,10 +92,10 @@ gradle assembleRelease
 
 ## 技术实现
 
-- 纯 Java + AndroidX，**无 native 依赖、无 FFmpeg**，APK 约 1–2 MB，任何 CPU 架构都能跑
+- 纯 Java + AndroidX + Compose，**无 native 依赖、无 FFmpeg**，APK 约 1–2 MB，任何 CPU 架构都能跑
 - 抽帧：`MediaMetadataRetriever.getFrameAtTime()`（微秒级）+ `Canvas` 等比缩放居中裁切
 - 打包：手写 ZIP 写入器（`StoredZipWriter`），精确控制每个字节——因为 `java.util.zip.ZipOutputStream` 默认 DEFLATE，不符合规范
-- 存储：API 29+ 走 MediaStore（零权限）；API 28 走公共下载目录（需存储权限）
+- 存储：**API 29+ 走 MediaStore，零权限**。注意：`minSdk` 虽为 28，但为了做到全程零权限弹窗，Manifest 已不声明存储权限；因此 API 28 设备保存到公共下载目录会失败。若要支持 Android 9 手机，需在 `AndroidManifest.xml` 补回 `WRITE_EXTERNAL_STORAGE`（带 `android:maxSdkVersion="28"`）。
 
 ## License
 
